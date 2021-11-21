@@ -12,6 +12,7 @@ int main( int argc, char* argv[]){
 	char *nexttoken;
 	char *operand;
 	char *operandCPY;
+	char *oc1;//-
 	char asciiHexString[SIZE*2] = {0};
 	char objCode[SIZE] = {0};
 	char hexString[SIZE*2]={0};
@@ -61,7 +62,8 @@ int main( int argc, char* argv[]){
 	memset( operand, '\0', SIZE * sizeof(char) ); 
 	operandCPY = malloc(SIZE * sizeof(char) );
 	memset(operandCPY, '\0', SIZE * sizeof(char) );
-
+	oc1 = malloc(SIZE * sizeof(char) );//-
+        memset(oc1, '\0', SIZE * sizeof(char) );//-
         //First pass
         while(  fgets( line , SIZE , fp ) != NULL   ) {
 		if( counter >= 32768){
@@ -245,6 +247,9 @@ int main( int argc, char* argv[]){
 			strcpy(objCode, OpcodeTable[opTableIndex].OpCode); //copy opcode hex
 			strcpy(operandCPY, operand); //copy third token to avoid unintentional modification of original
 
+			//copy opcode
+			strcpy(oc1,objCode);//-
+
 			//check for indirect addressing
 			if(strstr(operandCPY, ",X") != NULL){
 				char *t = strtok(operand, ",X");
@@ -265,15 +270,30 @@ int main( int argc, char* argv[]){
 			strcat(objCode,hexString); // add hexstring result to end of objCode
 
 			if(newsym == NULL){ //If no symbols are present
-				counter += 3;
-				insertTRecord(TextRecords, counter, OBJ_LENGTH, objCode);
-				insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
+				//checks to see if the instruction is a 1-byte instruction
+				if(onebXE(oc1)==1){//->
+					counter += 1;
+//					printf("this is one BYTE -> %s\n",nexttoken);
+					insertTRecord(TextRecords, counter, OBJ_LENGTH, oc1);
+                                	insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
+				}else{//<-
+					counter += 3;
+					insertTRecord(TextRecords, counter, OBJ_LENGTH, objCode);
+					insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
+				}
 			}
 			else{
-				counter = SymbolHashTable[currentIndex]->address;
-				insertTRecord(TextRecords, counter, OBJ_LENGTH, objCode);
-				insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
-
+				//checks to see if the instruction is a 1-byte instruction
+				if(onebXE(oc1)==1){//->
+					counter = SymbolHashTable[currentIndex]->address;
+//                                      printf("this is one BYTE -> %s\n",nexttoken);
+                                        insertTRecord(TextRecords, counter, OBJ_LENGTH, oc1);
+                                        insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
+                                }else{//<-
+					counter = SymbolHashTable[currentIndex]->address;
+					insertTRecord(TextRecords, counter, OBJ_LENGTH, objCode);
+					insertMRecord(ModRecords, counter, strlen(hexString), programStartName);
+				}
 			}
 		}
 	}
@@ -309,3 +329,27 @@ int validHex(char *test){ //check if string is a valid hex string
 	}
 	return 1;
 }
+
+//function for checking if an opcode belongs to a 1-byte instruction
+int onebXE(char *objCode){//->
+	int bv=0;
+	if(strcmp(objCode,"C4")==0){
+		bv=1;
+	}
+	else if(strcmp(objCode,"C0")==0){
+		bv=1;
+	}
+	else if(strcmp(objCode,"F4")==0){
+                bv=1;
+        }
+	else if(strcmp(objCode,"C8")==0){
+                bv=1;
+        }
+	else if(strcmp(objCode,"FO")==0){
+                bv=1;
+        }
+	else if(strcmp(objCode,"F8")==0){
+                bv=1;
+        }
+	return bv;
+}//<-
